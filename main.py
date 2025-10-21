@@ -7,7 +7,7 @@ import datetime
 
 
 bdr_max = 20
-num_walks = 20
+num_walks = 1
 epsilon = 10e-6
 max_walk_length = 100
 method = "delta_tracking"
@@ -49,6 +49,7 @@ if __name__ == '__main__':
     square_geometry = Square2D(btm_left[0],btm_left[1], bdr_max, bdr_cond, source_contribution)
     renderer = MonteCarloPDE2D(square_geometry, num_walks, epsilon, max_walk_length, method, diffusion_coefficient,
                                diffusion_laplacian, screening_coefficient, sigma_bar)
+
     values = renderer.find_pde()
     plotter = Display(values)
     plotter.plot()
