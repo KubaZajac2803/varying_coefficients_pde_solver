@@ -44,4 +44,4 @@ class Square2D:
         return closest_point
 
     def points_to_check(self):
-        return np.array([[k%(self.bdr_max), k//(self.bdr_max)] for k in range(0,(self.bdr_max)**2)])
+        return np.array([[k % self.bdr_max, k // self.bdr_max] for k in range(self.bdr_max ** 2)])
