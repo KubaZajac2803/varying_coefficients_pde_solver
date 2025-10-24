@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Square2D:
-    def __init__(self, x, y, bdr_max, boundary_condition_func, background_value=lambda point: 0):
+    def __init__(self, x, y, bdr_max, boundary_condition_func, background_value):
         self.name = 'Square2D'
         self.x = x
         self.y = y
