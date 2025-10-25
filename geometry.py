@@ -2,12 +2,10 @@ import numpy as np
 
 
 class Square2D:
-    def __init__(self, x, y, bdr_max, boundary_condition_func, background_value):
+    def __init__(self, bdr_max, boundary_condition_func, background_value):
         self.name = 'Square2D'
-        self.x = x
-        self.y = y
         self.bdr_max = bdr_max
-        self.boundary = np.array([[x, y + bdr_max], [x + bdr_max, y + bdr_max], [x + bdr_max, y], [x, y]])
+        self.boundary = np.array([[0, bdr_max], [bdr_max, bdr_max], [bdr_max, 0], [0, 0]])
         self.boundary_segments = np.array([[self.boundary[n - 1], self.boundary[n]] for n in range(len(self.boundary))])
         self.boundary_conditions = boundary_condition_func
         self.background_value = background_value
