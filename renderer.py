@@ -2,6 +2,7 @@ import numpy as np
 from scipy import special
 import copy
 import time
+import sympy as sym
 
 class MonteCarloPDE2D:
     def __init__(self, geometry, num_walks, epsilon, max_walk_length, method, diffusion=lambda x: 0, laplacian_diffusion = lambda x:0, norm_gradient_log_diffusion = lambda x:0, screening_coeff=lambda x: 0, max_screening = 0):
@@ -102,15 +103,14 @@ class MonteCarloPDE2D:
             T = 0
             S = 0
             W = 1
+            russian_roulette_probability = 1
             rand_angle_1 = 2 * np.pi * np.random.random()
             bdr_point = point_to_check + ball_radius * np.array([np.cos(rand_angle_1), np.sin(rand_angle_1)])
             curr_sample_point = np.array(copy.deepcopy(point_to_check))
             while True:
                 T += (W * self.Off_centered_Poisson_2D(ball_radius, point_to_check, curr_sample_point, bdr_point)
-                      / (2*np.pi*ball_radius))
-                russian_roulette_probability = min(1, W)
-                if russian_roulette_probability < np.random.random():
-                    break
+                      * (2*np.pi*ball_radius))
+
                 W /= russian_roulette_probability
                 rand_radius = ball_radius * np.random.random()
                 rand_angle_2 = 2 * np.pi * np.random.random()
@@ -118,15 +118,16 @@ class MonteCarloPDE2D:
                 W *= (self.Off_centered_greens_2D(ball_radius, point_to_check, curr_sample_point, new_sample_point)
                       * (self.max_screening - self.sigma_prime(new_sample_point))*self.Greens_2D_integral(ball_radius)
                       / self.Greens_2D(ball_radius, np.linalg.norm(point_to_check - new_sample_point)))
-                S += (self.geometry.value_at_boundary(new_sample_point)*W
+                russian_roulette_probability = min(1, W)
+                if russian_roulette_probability < np.random.random():
+                    break
+
+                S += (self.geometry.value_at_background(new_sample_point)*W
                       / (np.sqrt(self.diffusion(*new_sample_point))
-                      * self.max_screening - self.sigma_prime(new_sample_point)))
+                      * (self.max_screening - self.sigma_prime(new_sample_point))))
                 curr_sample_point = new_sample_point
-            if T > 100:
-                print(T)
             return ((np.sqrt(self.diffusion(*bdr_point))*T*self.next_flight(bdr_point, max_walk_length-1) + S)
                     / np.sqrt(self.diffusion(*point_to_check)))
-
 
     def find_pde(self):
         start_time = time.time()
@@ -142,7 +143,7 @@ class MonteCarloPDE2D:
             case "next_flight":
                 for i, point_to_check in enumerate(self.points_to_check):
                     for walk_num in range(self.num_walks):
-                        result[i] += self.next_flight(point_to_check, self.max_walk_length, CDF_hash) / self.num_walks
+                        result[i] += self.next_flight(point_to_check, self.max_walk_length) / self.num_walks
             case "background_values":
                 for i, point_to_check in enumerate(self.points_to_check):
                     result[i] = self.geometry.value_at_background(point_to_check)
@@ -163,3 +164,103 @@ class MonteCarloPDE2D:
         print("time:", time.time() - start_time)
         print(f"walks*pixels = {self.geometry.bdr_max ** 2 * self.num_walks}")
         return result
+
+
+class EuclideanBrownianMotion:
+    def __init__(self, geometry, epsilon, starting_point, diffusion, time_step):
+        self.geometry = geometry
+        self.epsilon = epsilon
+        self.starting_point = starting_point
+        self.diffusion = diffusion
+        self.time_step = time_step
+
+    def move_euclidean(self, point, d_to_bdr):
+        point = np.array(point)
+        step_vector = np.random.normal(0, 1, size=2)
+        dp = np.sqrt(2*self.time_step*self.diffusion(*point))*step_vector
+        dp_len = np.linalg.norm(dp)
+        if dp_len > d_to_bdr:
+            dp /= dp_len
+            dp *= d_to_bdr
+        new_point = point + dp
+        return new_point
+
+    def perform_walk(self):
+        positions = [self.starting_point]
+        curr_position = np.array(self.starting_point)
+        closest_boundary_point = self.geometry.closest_boundary_point(curr_position)
+        d_to_bdr = np.linalg.norm(curr_position - closest_boundary_point)
+        k = 0
+        while d_to_bdr > self.epsilon:
+            k+=1
+            if k % 1000 == 0:
+                pass
+            curr_position = self.move_euclidean(curr_position, d_to_bdr)
+            positions.append(curr_position)
+            closest_boundary_point = self.geometry.closest_boundary_point(curr_position)
+            d_to_bdr = np.linalg.norm(curr_position - closest_boundary_point)
+        return np.array(positions)
+
+
+class RiemannianBrownianMotion: #can compare directly with euclidean case as then g_ij is the identity matrix
+    def __init__(self, geometry, epsilon, starting_point, diffusion, time_step, parameterization):
+        self.geometry = geometry
+        self.epsilon = epsilon
+        self.starting_point = starting_point
+        self.diffusion = diffusion
+        self.time_step = time_step
+        self.parameterization = parameterization
+
+    def du_Riemannian_components(self):
+        u, v = sym.var('u v')
+        sym.init_printing()
+        J = self.parameterization.jacobian((u, v))
+        g = sym.Matrix(J.T@J)
+        inv_metric = g.inv()
+        sqrt_det_metric = sym.sqrt(sym.det(g))
+        sqrt_inv_metric = sym.sqrt(g.inv()).doit().factor(deep=True)
+        du1 = 1/2 * 1/sqrt_det_metric * (sym.diff(sqrt_det_metric * inv_metric[0, 0], u)
+                                         + sym.diff(sqrt_det_metric * inv_metric[0, 1], v))
+        du2 = 1/2 * 1/sqrt_det_metric * (sym.diff(sqrt_det_metric * inv_metric[1, 0], u)
+                                         + sym.diff(sqrt_det_metric * inv_metric[1, 1], v))
+        return du1, du2, sqrt_inv_metric
+
+    def move_riemannian(self, point, d_to_bdr, du1, du2, sqrt_inv_metric):
+        u, v = sym.var('u v')
+        point = np.array(point)
+
+        du1 = sym.lambdify((u, v), du1)
+        du2 = sym.lambdify((u, v), du2)
+        sqrt_inv_metric = sym.lambdify((u, v), sqrt_inv_metric)
+
+        du_Riemannian = np.array([du1(*point), du2(*point)])
+
+        step_length = np.random.normal(0, 1, size=2)
+        du_Euclidean = np.sqrt(2*self.time_step*self.diffusion(*point))*step_length
+        du_Euclidean = sqrt_inv_metric(*point)@du_Euclidean
+
+        du = self.time_step*du_Riemannian + du_Euclidean
+        du_len = np.linalg.norm(du)
+        if du_len > d_to_bdr:
+            du /= du_len
+            du *= d_to_bdr
+        new_point = point + du
+        return new_point
+
+    def perform_walk(self):
+        positions = [self.starting_point]
+        curr_position = np.array(self.starting_point)
+        closest_boundary_point = self.geometry.closest_boundary_point(curr_position)
+        d_to_bdr = np.linalg.norm(curr_position - closest_boundary_point)
+        du1, du2, sqrt_inv_metric = self.du_Riemannian_components()
+        k = 0
+        while d_to_bdr > self.epsilon and k < 5000:
+            k += 1
+            if k % 1000 == 0:
+                pass
+            curr_position = self.move_riemannian(curr_position, d_to_bdr, du1, du2, sqrt_inv_metric)
+            curr_position = [curr_position[0] % self.geometry.bdr_max_x, self.geometry.bdr_max_y - abs(curr_position[1] - self.geometry.bdr_max_y)] #THINK ABOUT THIS HEBUAIHGHUIREUBAKHBFGDUHI
+            closest_boundary_point = self.geometry.closest_boundary_point(curr_position)
+            d_to_bdr = np.linalg.norm(curr_position - closest_boundary_point)
+            positions.append(curr_position)
+        return np.array(positions)
