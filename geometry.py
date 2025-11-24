@@ -131,6 +131,12 @@ class ParametricHalfSphere:
                     closest_point = (1 - t) * p + t * q
             R = min(rtest, R)
         return closest_point
-
     def points_to_check(self):
-        return np.array([[k % self.resolution_x, k // self.resolution_x] for k in range(self.resolution_x*self.resolution_y)])
+            sample_num = self.resolution_x * self.resolution_y
+            points_angle = []
+            golden_ratio_rad = np.pi * (np.sqrt(5.) - 1.)
+            for i in range(sample_num):
+                angle_v = np.arcsin(1 - i/float(sample_num - 1))
+                angle_u = golden_ratio_rad * i
+                points_angle += np.array([angle_u, angle_v])
+            return points_angle
