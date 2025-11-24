@@ -203,13 +203,14 @@ class EuclideanBrownianMotion:
 
 
 class RiemannianBrownianMotion: #can compare directly with euclidean case as then g_ij is the identity matrix
-    def __init__(self, geometry, epsilon, starting_point, diffusion, time_step, parameterization):
+    def __init__(self, geometry, epsilon, starting_point, max_walk_length, diffusion, time_step, parameterization):
         self.geometry = geometry
         self.epsilon = epsilon
-        self.starting_point = starting_point
+        self.starting_point = starting_point # in [u, v] coordinates
         self.diffusion = diffusion
         self.time_step = time_step
         self.parameterization = parameterization
+        self.max_walk_length = max_walk_length
 
     def du_Riemannian_components(self):
         u, v = sym.var('u v')
@@ -245,22 +246,64 @@ class RiemannianBrownianMotion: #can compare directly with euclidean case as the
             du /= du_len
             du *= d_to_bdr
         new_point = point + du
-        return new_point
+        return np.array(new_point)
 
-    def perform_walk(self):
+    def perform_walk(self, split=False):
+        positions_split = []
         positions = [self.starting_point]
         curr_position = np.array(self.starting_point)
         closest_boundary_point = self.geometry.closest_boundary_point(curr_position)
         d_to_bdr = np.linalg.norm(curr_position - closest_boundary_point)
         du1, du2, sqrt_inv_metric = self.du_Riemannian_components()
         k = 0
-        while d_to_bdr > self.epsilon and k < 5000:
+        while d_to_bdr > self.epsilon and k < self.max_walk_length:
             k += 1
             if k % 1000 == 0:
                 pass
             curr_position = self.move_riemannian(curr_position, d_to_bdr, du1, du2, sqrt_inv_metric)
+            if split is True and not (0 < curr_position[0] < self.geometry.bdr_max_x):
+                positions_split.append(positions)
+                positions = []
             curr_position = [curr_position[0] % self.geometry.bdr_max_x, self.geometry.bdr_max_y - abs(curr_position[1] - self.geometry.bdr_max_y)] #THINK ABOUT THIS HEBUAIHGHUIREUBAKHBFGDUHI
             closest_boundary_point = self.geometry.closest_boundary_point(curr_position)
             d_to_bdr = np.linalg.norm(curr_position - closest_boundary_point)
             positions.append(curr_position)
-        return np.array(positions)
+        positions_split.append(positions)
+        if split is True:
+            return positions_split
+        return positions
+
+class MonteCarloRiemannianPDE2D:
+    def __init__(self, geometry, num_walks, epsilon, max_walk_length, diffusion, time_step, parameterization):
+        self.geometry = geometry
+        self.num_walks = num_walks
+        self.epsilon = epsilon
+        self.max_walk_length = max_walk_length
+        self.points_to_check = geometry.points_to_check()
+        self.diffusion = diffusion
+        self.time_step = time_step
+        self.parameterization = parameterization
+
+    def laplace(self, point_to_check):
+        point_to_check = np.array(point_to_check)
+        closest_boundary_point = self.geometry.closest_boundary_point(point_to_check)
+        dist_to_bdr = np.linalg.norm(point_to_check - closest_boundary_point)
+
+        if dist_to_bdr <= self.epsilon or self.max_walk_length <= 0:
+            return self.geometry.value_at_boundary(closest_boundary_point)
+        BM = RiemannianBrownianMotion(self.geometry, self.epsilon, point_to_check, self.max_walk_length,
+                                        self.diffusion, self.time_step, self.parameterization)
+        walk = BM.perform_walk()
+        closest_boundary_point = walk[-1]
+        return self.geometry.value_at_boundary(closest_boundary_point)
+
+    def find_pde(self):
+        start_time = time.time()
+        result = np.zeros(len(self.points_to_check))
+
+        for i, point in enumerate(self.points_to_check):
+            result[i] += self.laplace(point)/self.num_walks
+
+        print("time:", time.time() - start_time)
+        print(f"walks*pixels = {self.geometry.bdr_max ** 2 * self.num_walks}")
+        return result

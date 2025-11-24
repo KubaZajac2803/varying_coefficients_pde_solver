@@ -90,3 +90,47 @@ class Rectangle2D:
 
     def points_to_check(self):
         return np.array([[k % self.bdr_max_x, k // self.bdr_max_x] for k in range(self.bdr_max_x*self.bdr_max_y)])
+
+
+class ParametricHalfSphere:
+    def __init__(self, resolution_x, resolution_y, boundary_condition_func, background_value, boundary_segments=None):
+        self.resolution_x = resolution_x
+        self.resolution_y = resolution_y
+        self.boundary_conditions = boundary_condition_func
+        self.background_value = background_value
+        self.bdr_max_x = 2*np.pi
+        self.bdr_max_y = np.pi/2
+        self.boundary_segments = boundary_segments
+        if self.boundary_segments is None:
+            self.boundary_segments = np.array([[[0, 0], [self.bdr_max_x, 0]]])
+
+    def value_at_boundary(self, point):
+        return self.boundary_conditions(point)
+
+    def value_at_background(self, point):
+        return self.background_value(point)
+
+    def closest_boundary_point(self, current_point):
+        x = np.array(current_point)
+        closest_point = None
+        for segment in self.boundary_segments:
+            p = np.array(segment[0])
+            q = np.array(segment[1])
+            t = ((x - p) @ (q - p)) / (np.linalg.norm(p - q) ** 2)
+            if t < 0:
+                rtest = np.linalg.norm(x - p)
+                if rtest < R:
+                    closest_point = p
+            elif t > 1:
+                rtest = np.linalg.norm(x - q)
+                if rtest < R:
+                    closest_point = q
+            else:
+                rtest = np.linalg.norm(x - ((1 - t) * p + t * q))
+                if rtest < R:
+                    closest_point = (1 - t) * p + t * q
+            R = min(rtest, R)
+        return closest_point
+
+    def points_to_check(self):
+        return np.array([[k % self.resolution_x, k // self.resolution_x] for k in range(self.resolution_x*self.resolution_y)])
