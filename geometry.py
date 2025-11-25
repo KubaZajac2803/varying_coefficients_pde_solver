@@ -93,11 +93,8 @@ class Rectangle2D:
 
 
 class ParametricHalfSphere:
-    def __init__(self, resolution_x, resolution_y, boundary_condition_func, background_value, boundary_segments=None):
-        self.resolution_x = resolution_x
-        self.resolution_y = resolution_y
-        self.boundary_conditions = boundary_condition_func
-        self.background_value = background_value
+    def __init__(self, sample_num, boundary_segments=None):
+        self.sample_num = sample_num
         self.bdr_max_x = 2*np.pi
         self.bdr_max_y = np.pi/2
         self.boundary_segments = boundary_segments
@@ -105,13 +102,14 @@ class ParametricHalfSphere:
             self.boundary_segments = np.array([[[0, 0], [self.bdr_max_x, 0]]])
 
     def value_at_boundary(self, point):
-        return self.boundary_conditions(point)
+        return np.sin(point[0])
 
     def value_at_background(self, point):
-        return self.background_value(point)
+        return 0
 
     def closest_boundary_point(self, current_point):
         x = np.array(current_point)
+        R = np.inf
         closest_point = None
         for segment in self.boundary_segments:
             p = np.array(segment[0])
@@ -131,12 +129,12 @@ class ParametricHalfSphere:
                     closest_point = (1 - t) * p + t * q
             R = min(rtest, R)
         return closest_point
+
     def points_to_check(self):
-            sample_num = self.resolution_x * self.resolution_y
-            points_angle = []
-            golden_ratio_rad = np.pi * (np.sqrt(5.) - 1.)
-            for i in range(sample_num):
-                angle_v = np.arcsin(1 - i/float(sample_num - 1))
-                angle_u = golden_ratio_rad * i
-                points_angle += np.array([angle_u, angle_v])
-            return points_angle
+        points_angle = []
+        golden_ratio_rad = np.pi * (np.sqrt(5.) - 1.)
+        for i in range(self.sample_num):
+            angle_v = np.arcsin(1 - i/float(self.sample_num - 1))
+            angle_u = (golden_ratio_rad * i) % self.bdr_max_x
+            points_angle.append(np.array([angle_u, angle_v]))
+        return points_angle

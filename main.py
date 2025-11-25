@@ -1,14 +1,13 @@
-import display
 from geometry import Square2D, Rectangle2D, ParametricHalfSphere
 from renderer import MonteCarloPDE2D, EuclideanBrownianMotion, RiemannianBrownianMotion, MonteCarloRiemannianPDE2D
-from display import heatmap, graph_flat_walk, graph_walk_on_surface
+from display import heatmap, graph_flat_walk, graph_walk_on_surface, heatmap_riemannian
 import numpy as np
 import sympy as sym
 
 np.random.seed(42)
 bdr_max_x = 2*np.pi
 bdr_max_y = np.pi/2
-num_walks = 10
+num_walks = 300
 epsilon = 10e-3
 max_walk_length = 5000
 methods = {0: "next_flight", 1: "delta_tracking_recursion", 2: "background_values", 3: "screening_coefficient",
@@ -53,19 +52,20 @@ surface_parameterization = sym.Matrix([sym.cos(u)*sym.cos(v), sym.sin(u)*sym.cos
 
 time_step = 10e-4
 
-res_x = 10
-res_y = 10
+number_of_samples = 50
 
 if __name__ == '__main__':
 
+    half_sphere = ParametricHalfSphere(number_of_samples)
+    """
     geometry = Rectangle2D(bdr_max_x, bdr_max_y, bdr_cond, source_contribution,
                            np.array([[[0, 0], [bdr_max_x, 0]]]))
-    """
+    
     renderer = MonteCarloPDE2D(geometry, num_walks, epsilon, max_walk_length, method, diffusion_coefficient,
                                laplacian_diffusion, norm_gradient_log_diffusion, screening_coefficient, sigma_bar)
     values = renderer.find_pde()
     heatmap(values, geometry)
-    """
+    
     for n in range(2):
         starting_point = [0, np.pi/2]
         renderer = RiemannianBrownianMotion(geometry, 2e-10, starting_point, max_walk_length, diffusion_coefficient, time_step,
@@ -76,7 +76,7 @@ if __name__ == '__main__':
         graph_walk_on_surface(positions, geometry, surface_parameterization)
         print(n)
     """
-    geometry = ParametricHalfSphere(res_x, res_y, bdr_cond, source_contribution)
-    renderer = MonteCarloRiemannianPDE2D(geometry, num_walks, epsilon, max_walk_length, diffusion_coefficient,
+    renderer = MonteCarloRiemannianPDE2D(half_sphere, num_walks, epsilon, max_walk_length, diffusion_coefficient,
                                          time_step, surface_parameterization)
-    renderer.find_pde()"""
+    values = renderer.find_pde()
+    heatmap_riemannian(values, half_sphere, surface_parameterization)

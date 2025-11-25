@@ -302,8 +302,9 @@ class MonteCarloRiemannianPDE2D:
         result = np.zeros(len(self.points_to_check))
 
         for i, point in enumerate(self.points_to_check):
-            result[i] += self.laplace(point)/self.num_walks
+            for walk in range(self.num_walks):
+                result[i] += self.laplace(point)/self.num_walks
 
         print("time:", time.time() - start_time)
-        print(f"walks*pixels = {self.geometry.bdr_max ** 2 * self.num_walks}")
+        print(f"walks*pixels = {self.geometry.sample_num * self.num_walks}")
         return result
