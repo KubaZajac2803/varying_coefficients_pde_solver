@@ -126,3 +126,51 @@ def heatmap_riemannian(values, geometry, surface_parameterization):
         scene=dict(aspectmode='data'),
     )
     fig.show()
+
+def heatmap_riemannian_conform(values, geometry):
+    grid_size = 30
+    u = np.linspace(-1, 1, grid_size)
+    v = np.linspace(-1, 1, grid_size)
+    U, V = np.meshgrid(u, v)
+    mask = np.square(U) + np.square(V) <= geometry.radius
+    xyz = geometry.to_3D(np.array([U, V]))#*mask[None, :, :]
+    pts = geometry.to_3D(geometry.points_to_check().swapaxes(0, 1))
+    x_dot = pts[0, :]
+    y_dot = pts[1, :]
+    z_dot = pts[2, :]
+
+    x_pos = xyz[0, :]
+    y_pos = xyz[1, :]
+    z_pos = xyz[2, :]
+
+    cool_plotly = [
+        [0.0, "rgb(0, 255, 255)"],  # cyan
+        [1.0, "rgb(255, 0, 255)"],  # magenta
+    ]
+
+    fig = go.Figure(
+             go.Scatter3d(
+                 x=x_dot,
+                 y=y_dot,
+                 z=z_dot,
+                 mode='markers',
+                 marker=dict(
+                     size=5,
+                     symbol='circle',
+                     color=values,
+                     colorscale=cool_plotly
+                 )
+             )
+    )
+
+    #fig.add_trace(go.Surface(
+    #    x=x_pos, y=y_pos, z=z_pos,
+    #    opacity=0.4,
+    #    showscale=False,
+    #))
+
+    fig.update_layout(
+        scene=dict(aspectmode='data'),
+    )
+    
+    fig.write_html("half_sphere.html")

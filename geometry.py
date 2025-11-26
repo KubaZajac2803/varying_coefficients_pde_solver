@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 class Square2D:
@@ -138,3 +139,48 @@ class ParametricHalfSphere:
             angle_u = (golden_ratio_rad * i) % self.bdr_max_x
             points_angle.append(np.array([angle_u, angle_v]))
         return points_angle
+
+class ParametricHalfSphereConformal:
+    def __init__(self, sample_num, radius):
+        self.sample_num = sample_num
+        self.radius = radius
+        self.bdr_max = sample_num
+
+    def value_at_boundary(self, point):
+        return point[0]
+
+    def value_at_background(self, point):
+        return 0
+
+    def closest_boundary_point(self, current_point):
+        if np.count_nonzero(current_point) == 0:
+            current_point += np.array([np.random.random(), np.random.random()])
+            print('zero vec found new = ', current_point)
+        closest_boundry = self.radius * current_point / np.sqrt(current_point[0]**2 + current_point[1]**2)
+        print(closest_boundry[0] /np.sin(np.arccos(closest_boundry[1])))
+        return closest_boundry
+
+    def diffusion(self, u, v):
+        return (4 / ((1 + u ** 2 + v ** 2) ** 2))
+
+    def to_3D(self, points):
+        u = points[0]
+        v = points[1]
+        length2 = np.square(u) + np.square(v)
+        x = 2 * u / (1 + length2)
+        y = 2 * v / (1 + length2)
+        z = (1 - length2) / (1 + length2)
+        return np.array([x, y, z])
+
+    def points_to_check(self):
+        golden_ratio_rad = np.pi * (np.sqrt(5.) + 1.)
+        indices = np.arange(0, self.sample_num)
+        radius_scaling = np.sqrt(indices/self.sample_num) - 0.001
+        angle = golden_ratio_rad * indices
+
+        u = radius_scaling * np.cos(angle)
+        v = radius_scaling * np.sin(angle)
+
+        #plt.scatter(u, v, self.diffusion(u, v))
+        #plt.savefig('circle_in_2d.png')
+        return np.array([u, v]).swapaxes(0, 1)

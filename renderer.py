@@ -5,7 +5,7 @@ import time
 import sympy as sym
 
 class MonteCarloPDE2D:
-    def __init__(self, geometry, num_walks, epsilon, max_walk_length, method, diffusion=lambda x: 0, laplacian_diffusion = lambda x:0, norm_gradient_log_diffusion = lambda x:0, screening_coeff=lambda x: 0, max_screening = 0):
+    def __init__(self, geometry, num_walks, epsilon, max_walk_length, method, diffusion=lambda x: 0, laplacian_diffusion = lambda x, y:0, norm_gradient_log_diffusion = lambda x, y:0, screening_coeff=lambda x: 0, max_screening = 0):
         self.geometry = geometry
         self.num_walks = num_walks
         self.epsilon = epsilon
