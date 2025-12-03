@@ -17,7 +17,7 @@ class MonteCarloPDE2D:
         self.norm_gradient_log_diffusion = norm_gradient_log_diffusion
         self.screening_coeff = screening_coeff
         self.max_screening = max_screening
-        self.hash_length = 1000
+        self.hash_length = 100
 
     def Greens_2D(self, ball_radius, r):
          return (1/(2*np.pi))*(special.k0(r * np.sqrt(self.max_screening))
@@ -34,16 +34,19 @@ class MonteCarloPDE2D:
                  (self.norm_gradient_log_diffusion(*inside_point)**2)/2) / 2)
 
     def CDF(self):
-        x = np.linspace(1/self.hash_length, 1, self.hash_length)
+        x = np.linspace(1/(100*self.hash_length), 1, self.hash_length)
         y = np.array([self.Greens_2D(1, i) for i in x])
         cdf_hash = np.zeros(self.hash_length)
-        cdf_hash[0] = 0
-        for i in range(1, len(x)-1):
+        for i in range(1, len(x)):
             cdf_hash[i] = cdf_hash[i-1] + (y[i] + y[i-1])/(2*self.hash_length) #trapezoid integration method
-        cdf_hash = np.array(cdf_hash)
-        return cdf_hash/np.sum(cdf_hash)
+        return cdf_hash/cdf_hash[-1]
 
-    def delta_tracking_recursion(self, point_to_check, max_walk_length, CDF_values):
+    def PDF(self):
+        x = np.linspace(1/(10*self.hash_length), 1, self.hash_length)
+        y = np.array([self.Greens_2D(ball_radius=1, r=i) for i in x])
+        return y/np.sum(y)
+
+    def delta_tracking_recursion(self, point_to_check, max_walk_length, pdf_values):
         point_to_check = np.array(point_to_check)
         closest_boundary_point = self.geometry.closest_boundary_point(point_to_check)
         ball_radius = np.linalg.norm(point_to_check - closest_boundary_point)
@@ -52,19 +55,19 @@ class MonteCarloPDE2D:
             return self.geometry.value_at_boundary(closest_boundary_point)
         else:
             mu = np.random.random()
-            rand_radius = ball_radius * CDF_values[np.random.randint(1, self.hash_length - 1)]
+            rand_radius = ball_radius * np.random.choice(a=self.hash_length, p=pdf_values)/self.hash_length
             rand_angle_2 = 2 * np.pi * np.random.random()
             inside_point = point_to_check + rand_radius * np.array([np.cos(rand_angle_2), np.sin(rand_angle_2)])
             source_term = self.Greens_2D_integral(rand_radius)/(np.sqrt(self.diffusion(*point_to_check) * self.diffusion(*inside_point)))*self.geometry.value_at_background(inside_point)
             if mu <= self.max_screening*self.Greens_2D_integral(ball_radius):
                 sigma_prime = self.sigma_prime(inside_point)
                 return source_term + (np.sqrt(self.diffusion(*inside_point)/self.diffusion(*point_to_check))
-                        *(1-sigma_prime/self.max_screening)*self.delta_tracking_recursion(inside_point, max_walk_length-1, CDF_values))
+                        *(1-sigma_prime/self.max_screening)*self.delta_tracking_recursion(inside_point, max_walk_length-1, pdf_values))
             else:
                 rand_angle_1 = 2 * np.pi * np.random.random()
                 bdr_point = point_to_check + ball_radius * np.array([np.cos(rand_angle_1), np.sin(rand_angle_1)])
                 return source_term + (np.sqrt(self.diffusion(*bdr_point)/self.diffusion(*point_to_check)) *
-                        self.delta_tracking_recursion(bdr_point, max_walk_length-1, CDF_values))
+                        self.delta_tracking_recursion(bdr_point, max_walk_length-1, pdf_values))
 
     def Off_centered_greens_2D(self, ball_radius, center, curr_src_point, new_src_point):
         c = center
@@ -133,13 +136,13 @@ class MonteCarloPDE2D:
         start_time = time.time()
         result = np.zeros(len(self.points_to_check))
         #derivatives = []
-        CDF_hash = self.CDF()
-        CDF_hash = CDF_hash/np.max(CDF_hash)
+        #CDF_hash = self.CDF()
+        pdf_hash = self.PDF()
         match self.method:
             case "delta_tracking_recursion":
                 for i, point_to_check in enumerate(self.points_to_check):
                     for walk_num in range(self.num_walks):
-                        result[i] += self.delta_tracking_recursion(point_to_check, self.max_walk_length, CDF_hash)/self.num_walks
+                        result[i] += self.delta_tracking_recursion(point_to_check, self.max_walk_length, pdf_hash)/self.num_walks
             case "next_flight":
                 for i, point_to_check in enumerate(self.points_to_check):
                     for walk_num in range(self.num_walks):

@@ -144,24 +144,31 @@ class ParametricHalfSphereConformal:
     def __init__(self, sample_num, radius):
         self.sample_num = sample_num
         self.radius = radius
-        self.bdr_max = sample_num
+        self.bdr_max = np.sqrt(sample_num)
 
     def value_at_boundary(self, point):
-        return point[0]
-
-    def value_at_background(self, point):
         return 0
 
+    def value_at_background(self, point):
+        value = 0
+        norm = np.sqrt(point[0]**2 + point[1]**2)
+        #if point[0]**2 < 0.3**2:
+        #    if point[1]**2 < 0.3**2:
+        #        value = 10
+        if norm < 0.3:
+            value = 10
+        return value
+
     def closest_boundary_point(self, current_point):
-        if np.count_nonzero(current_point) == 0:
+        norm_length = np.sqrt(current_point[0]**2 + current_point[1]**2)
+        if norm_length == 0:
             current_point += np.array([np.random.random(), np.random.random()])
-            print('zero vec found new = ', current_point)
-        closest_boundry = self.radius * current_point / np.sqrt(current_point[0]**2 + current_point[1]**2)
-        print(closest_boundry[0] /np.sin(np.arccos(closest_boundry[1])))
+            print('low vec found new = ', current_point)
+        closest_boundry = self.radius * current_point / norm_length
         return closest_boundry
 
     def diffusion(self, u, v):
-        return (4 / ((1 + u ** 2 + v ** 2) ** 2))
+        return 1 / (4 / ((1 + u ** 2 + v ** 2) ** 2))
 
     def to_3D(self, points):
         u = points[0]
@@ -181,6 +188,6 @@ class ParametricHalfSphereConformal:
         u = radius_scaling * np.cos(angle)
         v = radius_scaling * np.sin(angle)
 
-        #plt.scatter(u, v, self.diffusion(u, v))
+        #plt.scatter(u, v, 10 * self.diffusion(u, v))
         #plt.savefig('circle_in_2d.png')
         return np.array([u, v]).swapaxes(0, 1)

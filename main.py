@@ -3,11 +3,12 @@ from renderer import MonteCarloPDE2D, EuclideanBrownianMotion, RiemannianBrownia
 from display import heatmap, graph_flat_walk, graph_walk_on_surface, heatmap_riemannian, heatmap_riemannian_conform
 import numpy as np
 import sympy as sym
+import matplotlib.pyplot as plt
 
 np.random.seed(42)
 bdr_max_x = 2*np.pi
 bdr_max_y = np.pi/2
-num_walks = 30
+num_walks = 1000
 epsilon = 10e-3
 max_walk_length = 5000
 methods = {0: "next_flight", 1: "delta_tracking_recursion", 2: "background_values", 3: "screening_coefficient",
@@ -52,12 +53,12 @@ surface_parameterization = sym.Matrix([sym.cos(u)*sym.cos(v), sym.sin(u)*sym.cos
 
 time_step = 10e-4
 
-number_of_samples = 100
+number_of_samples = 1000
 
 if __name__ == '__main__':
 
     # half_sphere1 = ParametricHalfSphereConf(number_of_samples)
-    half_sphere2 = ParametricHalfSphereConformal(number_of_samples, radius=1)
+    half_sphere2 = ParametricHalfSphereConformal(number_of_samples, radius=1.)
     """
     geometry = Rectangle2D(bdr_max_x, bdr_max_y, bdr_cond, source_contribution,
                            np.array([[[0, 0], [bdr_max_x, 0]]]))
@@ -81,6 +82,10 @@ if __name__ == '__main__':
                                             #                                     time_step, surface_parameterization)
     #values = renderer1.find_pde()
     screening_coeff_0 = lambda x : 0
-    renderer2 = MonteCarloPDE2D(half_sphere2, num_walks, epsilon, max_walk_length, method, half_sphere2.diffusion, max_screening=1)
+    renderer2 = MonteCarloPDE2D(half_sphere2, num_walks, epsilon, max_walk_length, method, half_sphere2.diffusion, max_screening=0.2)
+    
     values2 = renderer2.find_pde()
+    plt.scatter(half_sphere2.points_to_check()[:, 0], half_sphere2.points_to_check()[:, 1], values2)
+    plt.savefig('circle_in_2d.png')
+
     heatmap_riemannian_conform(values2, half_sphere2)
