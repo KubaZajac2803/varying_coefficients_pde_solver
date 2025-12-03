@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 np.random.seed(42)
 bdr_max_x = 2*np.pi
 bdr_max_y = np.pi/2
-num_walks = 1000
+bdr_max = 40
+num_walks = 150
 epsilon = 10e-3
 max_walk_length = 5000
 methods = {0: "next_flight", 1: "delta_tracking_recursion", 2: "background_values", 3: "screening_coefficient",
@@ -30,14 +31,12 @@ def source_contribution(x):
         return 0
 
 
-screening_scaling = 1
+screening_scaling = 1.3
 min_screening = 0.01
-sigma_bar = screening_scaling - min_screening
+
+
 def screening_coefficient(x):
-    if bdr_max_y/4 < x[1] < 3*bdr_max_y/4:
-        return screening_scaling + min_screening
-    else:
-        return min_screening
+    return min_screening + screening_scaling * (-abs(bdr_max/2 - x[1])+bdr_max/2)/bdr_max
 
 
 stddev = 2
@@ -53,7 +52,7 @@ surface_parameterization = sym.Matrix([sym.cos(u)*sym.cos(v), sym.sin(u)*sym.cos
 
 time_step = 10e-4
 
-number_of_samples = 1000
+number_of_samples = 200
 
 if __name__ == '__main__':
 
@@ -81,11 +80,12 @@ if __name__ == '__main__':
     # renderer1 = MonteCarloRiemannianPDE2D(half_sphere, num_walks, epsilon, max_walk_length, diffusion_coefficient,
                                             #                                     time_step, surface_parameterization)
     #values = renderer1.find_pde()
-    screening_coeff_0 = lambda x : 0
-    renderer2 = MonteCarloPDE2D(half_sphere2, num_walks, epsilon, max_walk_length, method, half_sphere2.diffusion, max_screening=0.2)
-    
+    screening_coeff_0 = lambda point: 0.2
+    renderer2 = MonteCarloPDE2D(half_sphere2, num_walks, epsilon, max_walk_length, method, half_sphere2.diffusion,
+                                half_sphere2.laplacian_diffusion, half_sphere2.norm_gradient_log_diffusion, screening_coeff_0)
+
     values2 = renderer2.find_pde()
-    plt.scatter(half_sphere2.points_to_check()[:, 0], half_sphere2.points_to_check()[:, 1], values2)
+    plt.scatter(half_sphere2.points_to_check()[:, 0], half_sphere2.points_to_check()[:, 1], np.abs(values2))
     plt.savefig('circle_in_2d.png')
 
     heatmap_riemannian_conform(values2, half_sphere2)

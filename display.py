@@ -111,7 +111,8 @@ def heatmap_riemannian(values, geometry, surface_parameterization):
                 size=5,
                 symbol='circle',
                 color=values,
-                colorscale=cool_plotly
+                colorscale=cool_plotly,
+                showscale = True,
             )
         )
     )

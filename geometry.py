@@ -147,7 +147,10 @@ class ParametricHalfSphereConformal:
         self.bdr_max = np.sqrt(sample_num)
 
     def value_at_boundary(self, point):
-        return 0
+        if -1/np.sqrt(2) < point[0] < 1/np.sqrt(2):
+            return 2
+        else:
+            return 0
 
     def value_at_background(self, point):
         value = 0
@@ -155,9 +158,9 @@ class ParametricHalfSphereConformal:
         #if point[0]**2 < 0.3**2:
         #    if point[1]**2 < 0.3**2:
         #        value = 10
-        if norm < 0.3:
-            value = 10
-        return value
+        #if norm < 0.3:
+        #    value = 100
+        return 0
 
     def closest_boundary_point(self, current_point):
         norm_length = np.sqrt(current_point[0]**2 + current_point[1]**2)
@@ -168,7 +171,13 @@ class ParametricHalfSphereConformal:
         return closest_boundry
 
     def diffusion(self, u, v):
-        return 1 / (4 / ((1 + u ** 2 + v ** 2) ** 2))
+        return 1/(4 / ((1 + u ** 2 + v ** 2) ** 2))
+
+    def laplacian_diffusion(self, u, v):
+        return 2*(2*u**2 + 2*v**2 + 1)
+
+    def norm_gradient_log_diffusion(self, u, v):
+        return (4*u + 4*v)/(u**2 + v**2+1)
 
     def to_3D(self, points):
         u = points[0]

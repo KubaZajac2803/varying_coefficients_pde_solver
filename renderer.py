@@ -1,11 +1,11 @@
 import numpy as np
-from scipy import special
+from scipy import special, optimize
 import copy
 import time
 import sympy as sym
 
 class MonteCarloPDE2D:
-    def __init__(self, geometry, num_walks, epsilon, max_walk_length, method, diffusion=lambda x: 0, laplacian_diffusion = lambda x, y:0, norm_gradient_log_diffusion = lambda x, y:0, screening_coeff=lambda x: 0, max_screening = 0):
+    def __init__(self, geometry, num_walks, epsilon, max_walk_length, method, diffusion=lambda x, y: 0, laplacian_diffusion=lambda x, y: 0, norm_gradient_log_diffusion=lambda x, y:0, screening_coeff=lambda x: 0):
         self.geometry = geometry
         self.num_walks = num_walks
         self.epsilon = epsilon
@@ -16,8 +16,19 @@ class MonteCarloPDE2D:
         self.laplacian_diffusion = laplacian_diffusion
         self.norm_gradient_log_diffusion = norm_gradient_log_diffusion
         self.screening_coeff = screening_coeff
-        self.max_screening = max_screening
         self.hash_length = 100
+        self.max_screening = self.sigma_prime(
+            optimize.minimize(lambda x: -1*self.sigma_prime(x),
+                              x0=np.array([0, 0]),
+                              method='trust-constr',
+                              constraints=(optimize.NonlinearConstraint(lambda x: x[0], 0, self.geometry.bdr_max),
+                                           optimize.NonlinearConstraint(lambda x: x[1], 0, self.geometry.bdr_max))).x)
+
+    def sigma_prime(self, inside_point):
+        return (self.screening_coeff(inside_point) / self.diffusion(*inside_point) +
+                (self.laplacian_diffusion(*inside_point)/self.diffusion(*inside_point) -
+                 (self.norm_gradient_log_diffusion(*inside_point)**2)/2) / 2)
+
 
     def Greens_2D(self, ball_radius, r):
          return (1/(2*np.pi))*(special.k0(r * np.sqrt(self.max_screening))
@@ -28,10 +39,6 @@ class MonteCarloPDE2D:
     def Greens_2D_integral(self, ball_radius):
         return (1/self.max_screening)*(1 - 1/(special.i0(ball_radius * np.sqrt(self.max_screening))))
 
-    def sigma_prime(self, inside_point):
-        return (self.screening_coeff(inside_point) / self.diffusion(*inside_point) +
-                (self.laplacian_diffusion(*inside_point)/self.diffusion(*inside_point) -
-                 (self.norm_gradient_log_diffusion(*inside_point)**2)/2) / 2)
 
     def CDF(self):
         x = np.linspace(1/(100*self.hash_length), 1, self.hash_length)
@@ -42,7 +49,7 @@ class MonteCarloPDE2D:
         return cdf_hash/cdf_hash[-1]
 
     def PDF(self):
-        x = np.linspace(1/(10*self.hash_length), 1, self.hash_length)
+        x = np.linspace(1/(10*self.hash_length), 1-1/(10*self.hash_length), self.hash_length)
         y = np.array([self.Greens_2D(ball_radius=1, r=i) for i in x])
         return y/np.sum(y)
 
