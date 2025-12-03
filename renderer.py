@@ -17,6 +17,7 @@ class MonteCarloPDE2D:
         self.norm_gradient_log_diffusion = norm_gradient_log_diffusion
         self.screening_coeff = screening_coeff
         self.hash_length = 100
+        self.random_length_to_sample = np.arange(self.hash_length) / self.hash_length
         self.max_screening = self.sigma_prime(
             optimize.minimize(lambda x: -1*self.sigma_prime(x),
                               x0=np.array([0, 0]),
@@ -62,7 +63,7 @@ class MonteCarloPDE2D:
             return self.geometry.value_at_boundary(closest_boundary_point)
         else:
             mu = np.random.random()
-            rand_radius = ball_radius * np.random.choice(a=self.hash_length, p=pdf_values)/self.hash_length
+            rand_radius = ball_radius * np.random.choice(a=self.random_length_to_sample, p=pdf_values)
             rand_angle_2 = 2 * np.pi * np.random.random()
             inside_point = point_to_check + rand_radius * np.array([np.cos(rand_angle_2), np.sin(rand_angle_2)])
             source_term = self.Greens_2D_integral(rand_radius)/(np.sqrt(self.diffusion(*point_to_check) * self.diffusion(*inside_point)))*self.geometry.value_at_background(inside_point)
