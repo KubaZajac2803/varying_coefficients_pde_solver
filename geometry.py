@@ -148,19 +148,17 @@ class ParametricHalfSphereConformal:
 
     def value_at_boundary(self, point):
         if -1/np.sqrt(2) < point[0] < 1/np.sqrt(2):
-            return 2
+            return 0
         else:
             return 0
 
     def value_at_background(self, point):
-        value = 0
+        value = 10
         norm = np.sqrt(point[0]**2 + point[1]**2)
         #if point[0]**2 < 0.3**2:
         #    if point[1]**2 < 0.3**2:
         #        value = 10
-        #if norm < 0.3:
-        #    value = 100
-        return 0
+        return value*(np.exp(-10*norm))
 
     def closest_boundary_point(self, current_point):
         norm_length = np.sqrt(current_point[0]**2 + current_point[1]**2)

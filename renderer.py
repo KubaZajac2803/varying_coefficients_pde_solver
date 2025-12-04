@@ -17,12 +17,19 @@ class MonteCarloPDE2D:
         self.laplacian_diffusion = laplacian_diffusion
         self.norm_gradient_log_diffusion = norm_gradient_log_diffusion
         self.screening_coeff = screening_coeff
-        self.max_screening = self.sigma_prime(
+        max_sigma_bar = self.sigma_prime(
             optimize.minimize(lambda x: -1*self.sigma_prime(x),
                               x0=np.array([0, 0]),
                               method='trust-constr',
                               constraints=(optimize.NonlinearConstraint(lambda x: x[0], 0, self.geometry.bdr_max),
                                            optimize.NonlinearConstraint(lambda x: x[1], 0, self.geometry.bdr_max))).x)
+        min_sigma_bar = self.sigma_prime(
+            optimize.minimize(lambda x: self.sigma_prime(x),
+                              x0=np.array([0, 0]),
+                              method='trust-constr',
+                              constraints=(optimize.NonlinearConstraint(lambda x: x[0], 0, self.geometry.bdr_max),
+                                           optimize.NonlinearConstraint(lambda x: x[1], 0, self.geometry.bdr_max))).x)
+        self.max_screening = max_sigma_bar - min_sigma_bar
         self.inv_cdf = self.inv_CDF()
     
     def sigma_prime(self, inside_point):
@@ -67,7 +74,7 @@ class MonteCarloPDE2D:
             return self.geometry.value_at_boundary(closest_boundary_point)
         else:
             mu = np.random.random()
-            rand_radius = ball_radius * self.inv_cdf(np.random.random())
+            rand_radius = ball_radius * self.inv_cdf(np.sqrt(np.random.random()))
             rand_angle_2 = 2 * np.pi * np.random.random()
             inside_point = point_to_check + rand_radius * np.array([np.cos(rand_angle_2), np.sin(rand_angle_2)])
             source_term = self.Greens_2D_integral(rand_radius)/(np.sqrt(self.diffusion(*point_to_check) * self.diffusion(*inside_point)))*self.geometry.value_at_background(inside_point)

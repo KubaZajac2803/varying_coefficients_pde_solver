@@ -52,7 +52,7 @@ surface_parameterization = sym.Matrix([sym.cos(u)*sym.cos(v), sym.sin(u)*sym.cos
 
 time_step = 10e-4
 
-number_of_samples = 200
+number_of_samples = 1000
 
 if __name__ == '__main__':
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
                                 half_sphere2.laplacian_diffusion, half_sphere2.norm_gradient_log_diffusion, screening_coeff_0)
 
     values2 = renderer2.find_pde()
-    plt.scatter(half_sphere2.points_to_check()[:, 0], half_sphere2.points_to_check()[:, 1], np.abs(values2))
+    plt.scatter(half_sphere2.points_to_check()[:, 0], half_sphere2.points_to_check()[:, 1], 100*np.abs(values2))
     plt.savefig('circle_in_2d.png')
 
     heatmap_riemannian_conform(values2, half_sphere2)
