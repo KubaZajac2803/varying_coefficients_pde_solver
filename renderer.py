@@ -3,6 +3,7 @@ from scipy import special, optimize
 import copy
 import time
 import sympy as sym
+CDF_SAMPLES = 1000
 
 class MonteCarloPDE2D:
     def __init__(self, geometry, num_walks, epsilon, max_walk_length, method, diffusion=lambda x, y: 0, laplacian_diffusion=lambda x, y: 0, norm_gradient_log_diffusion=lambda x, y:0, screening_coeff=lambda x: 0):
@@ -16,15 +17,14 @@ class MonteCarloPDE2D:
         self.laplacian_diffusion = laplacian_diffusion
         self.norm_gradient_log_diffusion = norm_gradient_log_diffusion
         self.screening_coeff = screening_coeff
-        self.hash_length = 100
-        self.random_length_to_sample = np.arange(self.hash_length) / self.hash_length
         self.max_screening = self.sigma_prime(
             optimize.minimize(lambda x: -1*self.sigma_prime(x),
                               x0=np.array([0, 0]),
                               method='trust-constr',
                               constraints=(optimize.NonlinearConstraint(lambda x: x[0], 0, self.geometry.bdr_max),
                                            optimize.NonlinearConstraint(lambda x: x[1], 0, self.geometry.bdr_max))).x)
-
+        self.inv_cdf = self.inv_CDF()
+    
     def sigma_prime(self, inside_point):
         return (self.screening_coeff(inside_point) / self.diffusion(*inside_point) +
                 (self.laplacian_diffusion(*inside_point)/self.diffusion(*inside_point) -
@@ -41,20 +41,24 @@ class MonteCarloPDE2D:
         return (1/self.max_screening)*(1 - 1/(special.i0(ball_radius * np.sqrt(self.max_screening))))
 
 
-    def CDF(self):
-        x = np.linspace(1/(100*self.hash_length), 1, self.hash_length)
+    def inv_CDF(self):
+        x = np.linspace(1/CDF_SAMPLES, 1, CDF_SAMPLES)
         y = np.array([self.Greens_2D(1, i) for i in x])
-        cdf_hash = np.zeros(self.hash_length)
+        cdf = np.zeros(len(x))
         for i in range(1, len(x)):
-            cdf_hash[i] = cdf_hash[i-1] + (y[i] + y[i-1])/(2*self.hash_length) #trapezoid integration method
-        return cdf_hash/cdf_hash[-1]
+            cdf[i] = cdf[i - 1] + (y[i] + y[i - 1]) / (2 * CDF_SAMPLES)
+        x = x[1:]
+        cdf = cdf[1:]
+        cdf = cdf/np.max(cdf)
+        # now interpolate/do LSQ on (y, x) point pairs
+        fitting_fun = lambda t: np.array([1/(1.1-t), np.exp(t), np.exp(2*t), np.exp(3*t), np.exp(4*t)])
+        A = np.array([fitting_fun(known_point) for known_point in cdf])
+        c = np.linalg.solve(A.T@A, A.T@x)
+        c = c/(fitting_fun(1)@c)
+        return lambda t: fitting_fun(t)@c
 
-    def PDF(self):
-        x = np.linspace(1/(10*self.hash_length), 1-1/(10*self.hash_length), self.hash_length)
-        y = np.array([self.Greens_2D(ball_radius=1, r=i) for i in x])
-        return y/np.sum(y)
 
-    def delta_tracking_recursion(self, point_to_check, max_walk_length, pdf_values):
+    def delta_tracking_recursion(self, point_to_check, max_walk_length):
         point_to_check = np.array(point_to_check)
         closest_boundary_point = self.geometry.closest_boundary_point(point_to_check)
         ball_radius = np.linalg.norm(point_to_check - closest_boundary_point)
@@ -63,19 +67,20 @@ class MonteCarloPDE2D:
             return self.geometry.value_at_boundary(closest_boundary_point)
         else:
             mu = np.random.random()
-            rand_radius = ball_radius * np.random.choice(a=self.random_length_to_sample, p=pdf_values)
+            rand_radius = ball_radius * self.inv_cdf(np.random.random())
             rand_angle_2 = 2 * np.pi * np.random.random()
             inside_point = point_to_check + rand_radius * np.array([np.cos(rand_angle_2), np.sin(rand_angle_2)])
             source_term = self.Greens_2D_integral(rand_radius)/(np.sqrt(self.diffusion(*point_to_check) * self.diffusion(*inside_point)))*self.geometry.value_at_background(inside_point)
             if mu <= self.max_screening*self.Greens_2D_integral(ball_radius):
                 sigma_prime = self.sigma_prime(inside_point)
                 return source_term + (np.sqrt(self.diffusion(*inside_point)/self.diffusion(*point_to_check))
-                        *(1-sigma_prime/self.max_screening)*self.delta_tracking_recursion(inside_point, max_walk_length-1, pdf_values))
+                        *(1-sigma_prime/self.max_screening)*self.delta_tracking_recursion(inside_point, max_walk_length-1))
             else:
                 rand_angle_1 = 2 * np.pi * np.random.random()
                 bdr_point = point_to_check + ball_radius * np.array([np.cos(rand_angle_1), np.sin(rand_angle_1)])
                 return source_term + (np.sqrt(self.diffusion(*bdr_point)/self.diffusion(*point_to_check)) *
-                        self.delta_tracking_recursion(bdr_point, max_walk_length-1, pdf_values))
+                        self.delta_tracking_recursion(bdr_point, max_walk_length-1))
+
 
     def Off_centered_greens_2D(self, ball_radius, center, curr_src_point, new_src_point):
         c = center
@@ -143,14 +148,11 @@ class MonteCarloPDE2D:
     def find_pde(self):
         start_time = time.time()
         result = np.zeros(len(self.points_to_check))
-        #derivatives = []
-        #CDF_hash = self.CDF()
-        pdf_hash = self.PDF()
         match self.method:
             case "delta_tracking_recursion":
                 for i, point_to_check in enumerate(self.points_to_check):
                     for walk_num in range(self.num_walks):
-                        result[i] += self.delta_tracking_recursion(point_to_check, self.max_walk_length, pdf_hash)/self.num_walks
+                        result[i] += self.delta_tracking_recursion(point_to_check, self.max_walk_length)/self.num_walks
             case "next_flight":
                 for i, point_to_check in enumerate(self.points_to_check):
                     for walk_num in range(self.num_walks):
