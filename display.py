@@ -75,7 +75,7 @@ def graph_walk_on_surface(positions_split, geometry, surface_parameterization):
     )
     fig.show()
 
-def heatmap_riemannian(values, geometry, surface_parameterization):
+def heatmap_riemannian(values, geometry, surface_parameterization, num_walks):
     u, v = sym.var('u v')
     phi = sym.lambdify((u, v), sym.Matrix(surface_parameterization), 'numpy')
 
@@ -126,6 +126,8 @@ def heatmap_riemannian(values, geometry, surface_parameterization):
     fig.update_layout(
         scene=dict(aspectmode='data'),
     )
+    now = datetime.datetime.now().strftime("%Y-%m-%d")
+    fig.write_html(f'{now}_{geometry.sample_num}_samples_{num_walks}_walks.html')
     fig.show()
 
 def heatmap_riemannian_conform(values, geometry):

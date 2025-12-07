@@ -3,6 +3,7 @@ from renderer import MonteCarloPDE2D, EuclideanBrownianMotion, RiemannianBrownia
 from display import heatmap, graph_flat_walk, graph_walk_on_surface, heatmap_riemannian, heatmap_riemannian_conform
 import numpy as np
 import sympy as sym
+import datetime
 import matplotlib.pyplot as plt
 
 np.random.seed(42)
@@ -41,7 +42,7 @@ def screening_coefficient(x):
 
 stddev = 2
 x, y = sym.symbols('x y')
-diffusion = 1#1# + sym.exp(-((x-bdr_max_x/2)**2 + (y-bdr_max_y/2)**2)/(2*stddev**2))
+diffusion = 10#1# + sym.exp(-((x-bdr_max_x/2)**2 + (y-bdr_max_y/2)**2)/(2*stddev**2))
 diffusion_coefficient = sym.lambdify((x, y), diffusion)
 laplacian_diffusion = sym.lambdify((x, y), sym.simplify(sym.diff(diffusion, x, x) + sym.diff(diffusion, y, y)))
 norm_gradient_log_diffusion = sym.lambdify((x, y), sym.sqrt(sym.simplify(sym.diff(sym.log(diffusion), x)**2 +
@@ -58,6 +59,7 @@ if __name__ == '__main__':
 
     # half_sphere1 = ParametricHalfSphereConf(number_of_samples)
     half_sphere2 = ParametricHalfSphereConformal(number_of_samples, radius=1.)
+    # half_sphere_bm = ParametricHalfSphere(number_of_samples)
     """
     geometry = Rectangle2D(bdr_max_x, bdr_max_y, bdr_cond, source_contribution,
                            np.array([[[0, 0], [bdr_max_x, 0]]]))
@@ -77,15 +79,19 @@ if __name__ == '__main__':
         graph_walk_on_surface(positions, geometry, surface_parameterization)
         print(n)
     """
-    # renderer1 = MonteCarloRiemannianPDE2D(half_sphere, num_walks, epsilon, max_walk_length, diffusion_coefficient,
-                                            #                                     time_step, surface_parameterization)
-    #values = renderer1.find_pde()
-    screening_coeff_0 = lambda point: 0.2
+    """
+    renderer1 = MonteCarloRiemannianPDE2D(half_sphere_bm, num_walks, epsilon, max_walk_length, diffusion_coefficient,
+                                          time_step, surface_parameterization)
+    values = renderer1.find_pde()
+    heatmap_riemannian(values, half_sphere_bm, surface_parameterization, num_walks)
+    now = datetime.datetime.now().strftime("%Y-%m-%d")
+    np.save(f'{now}_for_{half_sphere_bm.sample_num}_samples_{num_walks}_walks', values)
+    """
+    screening_coeff_0 = lambda point: 0
     renderer2 = MonteCarloPDE2D(half_sphere2, num_walks, epsilon, max_walk_length, method, half_sphere2.diffusion,
                                 half_sphere2.laplacian_diffusion, half_sphere2.norm_gradient_log_diffusion, screening_coeff_0)
 
     values2 = renderer2.find_pde()
     plt.scatter(half_sphere2.points_to_check()[:, 0], half_sphere2.points_to_check()[:, 1], 100*np.abs(values2))
     plt.savefig('circle_in_2d.png')
-
     heatmap_riemannian_conform(values2, half_sphere2)

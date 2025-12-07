@@ -57,7 +57,7 @@ class MonteCarloPDE2D:
         x = x[1:]
         cdf = cdf[1:]
         cdf = cdf/np.max(cdf)
-        # now interpolate/do LSQ on (y, x) point pairs
+        # now do LSQ on (y, x) point pairs
         fitting_fun = lambda t: np.array([1/(1.1-t), np.exp(t), np.exp(2*t), np.exp(3*t), np.exp(4*t)])
         A = np.array([fitting_fun(known_point) for known_point in cdf])
         c = np.linalg.solve(A.T@A, A.T@x)
@@ -74,7 +74,7 @@ class MonteCarloPDE2D:
             return self.geometry.value_at_boundary(closest_boundary_point)
         else:
             mu = np.random.random()
-            rand_radius = ball_radius * self.inv_cdf(np.sqrt(np.random.random()))
+            rand_radius = ball_radius * self.inv_cdf(np.random.random())
             rand_angle_2 = 2 * np.pi * np.random.random()
             inside_point = point_to_check + rand_radius * np.array([np.cos(rand_angle_2), np.sin(rand_angle_2)])
             source_term = self.Greens_2D_integral(rand_radius)/(np.sqrt(self.diffusion(*point_to_check) * self.diffusion(*inside_point)))*self.geometry.value_at_background(inside_point)

@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import sympy as sym
 
 
 class Square2D:
@@ -145,6 +146,12 @@ class ParametricHalfSphereConformal:
         self.sample_num = sample_num
         self.radius = radius
         self.bdr_max = np.sqrt(sample_num)
+        u, v = sym.symbols('u, v')
+        diffusion = (1 + u ** 2 + v ** 2) / 2  # 1/sqrt(lambda)
+        self.laplacian_diffusion = sym.lambdify((u, v), sym.simplify(sym.diff(diffusion, u, u) + sym.diff(diffusion, v, v)))
+        self.norm_gradient_log_diffusion = sym.lambdify((u, v), sym.sqrt(sym.simplify(sym.diff(sym.log(diffusion), u) ** 2 +
+                                                                                 sym.diff(sym.log(diffusion), v) ** 2)))
+        self.diffusion = sym.lambdify((u, v), diffusion)
 
     def value_at_boundary(self, point):
         if -1/np.sqrt(2) < point[0] < 1/np.sqrt(2):
@@ -155,10 +162,10 @@ class ParametricHalfSphereConformal:
     def value_at_background(self, point):
         value = 10
         norm = np.sqrt(point[0]**2 + point[1]**2)
-        #if point[0]**2 < 0.3**2:
-        #    if point[1]**2 < 0.3**2:
-        #        value = 10
-        return value*(np.exp(-10*norm))
+        if point[0]**2 < 0.3**2:
+            if point[1]**2 < 0.3**2:
+                value = 10
+        return value # *(np.exp(-10*norm))
 
     def closest_boundary_point(self, current_point):
         norm_length = np.sqrt(current_point[0]**2 + current_point[1]**2)
@@ -167,15 +174,6 @@ class ParametricHalfSphereConformal:
             print('low vec found new = ', current_point)
         closest_boundry = self.radius * current_point / norm_length
         return closest_boundry
-
-    def diffusion(self, u, v):
-        return 1/(4 / ((1 + u ** 2 + v ** 2) ** 2))
-
-    def laplacian_diffusion(self, u, v):
-        return 2*(2*u**2 + 2*v**2 + 1)
-
-    def norm_gradient_log_diffusion(self, u, v):
-        return (4*u + 4*v)/(u**2 + v**2+1)
 
     def to_3D(self, points):
         u = points[0]
