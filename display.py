@@ -5,12 +5,12 @@ import sympy as sym
 import plotly.graph_objects as go
 
 
-def heatmap(values, geometry):
+def heatmap(values, geometry, num_walks):
     values = np.reshape(values, shape=geometry.shape)
     plt.imshow(values, cmap='cool', origin='lower', interpolation='None', interpolation_stage='data')
     plt.colorbar()
-    now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    #plt.savefig(now + ".svg", format ='svg', bbox_inches = 'tight', pad_inches = 0)
+    now = datetime.datetime.now().strftime("%Y-%m-%d")
+    plt.savefig(f'plots/{now}_shape_{geometry.shape}_walks_{num_walks}.pdf', format='pdf', bbox_inches='tight', pad_inches=0)
     plt.show()
 
 
@@ -161,7 +161,8 @@ def heatmap_riemannian_conform(values, geometry):
                      size=5,
                      symbol='circle',
                      color=values,
-                     colorscale=cool_plotly
+                     colorscale=cool_plotly,
+                     showscale=True
                  )
              )
     )
@@ -176,4 +177,4 @@ def heatmap_riemannian_conform(values, geometry):
         scene=dict(aspectmode='data'),
     )
     
-    fig.write_html("half_sphere.html")
+    fig.write_html("bdr_zero_constant_source.html")

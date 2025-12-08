@@ -9,27 +9,27 @@ import matplotlib.pyplot as plt
 np.random.seed(42)
 bdr_max_x = 2*np.pi
 bdr_max_y = np.pi/2
-bdr_max = 40
-num_walks = 150
+bdr_max = 5
+num_walks = 30
 epsilon = 10e-3
 max_walk_length = 5000
 methods = {0: "next_flight", 1: "delta_tracking_recursion", 2: "background_values", 3: "screening_coefficient",
-           4: "diffusion", 5: "laplacian_diffusion", 6: "norm_gradient_log_diffusion"}
-method = methods[1]
+           4: "diffusion", 5: "laplacian_diffusion", 6: "norm_gradient_log_diffusion", 7: "boundary_values"}
+method = methods[7]
 
 
 def bdr_cond(x):
-    if x[0] > bdr_max_x/2:
-        return 1
+    if x[0] < (bdr_max_x-1)/2:
+        return 0.
     else:
-        return 0
+        return 1.
 
 
 def source_contribution(x):
     if bdr_max_x/4 < x[0] < 3*bdr_max_x/4 and bdr_max_y / 4 < x[1] < 3 * bdr_max_y / 4:
-        return 0.05
+        return 0.0
     else:
-        return 0
+        return 0.0
 
 
 screening_scaling = 1.3
@@ -37,12 +37,12 @@ min_screening = 0.01
 
 
 def screening_coefficient(x):
-    return min_screening + screening_scaling * (-abs(bdr_max/2 - x[1])+bdr_max/2)/bdr_max
+    return 0  # min_screening + screening_scaling * (-abs(bdr_max/2 - x[1])+bdr_max/2)/bdr_max
 
 
 stddev = 2
 x, y = sym.symbols('x y')
-diffusion = 10#1# + sym.exp(-((x-bdr_max_x/2)**2 + (y-bdr_max_y/2)**2)/(2*stddev**2))
+diffusion = (1 + (x/bdr_max - 1/2) ** 2 + (y/bdr_max - 1/2) ** 2) / 2  # 1 + sym.exp(-((x-bdr_max_x/2)**2 + (y-bdr_max_y/2)**2)/(2*stddev**2))
 diffusion_coefficient = sym.lambdify((x, y), diffusion)
 laplacian_diffusion = sym.lambdify((x, y), sym.simplify(sym.diff(diffusion, x, x) + sym.diff(diffusion, y, y)))
 norm_gradient_log_diffusion = sym.lambdify((x, y), sym.sqrt(sym.simplify(sym.diff(sym.log(diffusion), x)**2 +
@@ -58,17 +58,15 @@ number_of_samples = 1000
 if __name__ == '__main__':
 
     # half_sphere1 = ParametricHalfSphereConf(number_of_samples)
-    half_sphere2 = ParametricHalfSphereConformal(number_of_samples, radius=1.)
+    # half_sphere2 = ParametricHalfSphereConformal(number_of_samples, radius=1.)
     # half_sphere_bm = ParametricHalfSphere(number_of_samples)
-    """
-    geometry = Rectangle2D(bdr_max_x, bdr_max_y, bdr_cond, source_contribution,
-                           np.array([[[0, 0], [bdr_max_x, 0]]]))
-    
+
+    geometry = Square2D(bdr_max, bdr_cond, source_contribution)
     renderer = MonteCarloPDE2D(geometry, num_walks, epsilon, max_walk_length, method, diffusion_coefficient,
-                               laplacian_diffusion, norm_gradient_log_diffusion, screening_coefficient, sigma_bar)
+                               laplacian_diffusion, norm_gradient_log_diffusion, screening_coefficient)
     values = renderer.find_pde()
-    heatmap(values, geometry)
-    
+    heatmap(values, geometry, num_walks)
+    """
     for n in range(2):
         starting_point = [0, np.pi/2]
         renderer = RiemannianBrownianMotion(geometry, 2e-10, starting_point, max_walk_length, diffusion_coefficient, time_step,
@@ -86,7 +84,8 @@ if __name__ == '__main__':
     heatmap_riemannian(values, half_sphere_bm, surface_parameterization, num_walks)
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     np.save(f'{now}_for_{half_sphere_bm.sample_num}_samples_{num_walks}_walks', values)
-    """
+    
+
     screening_coeff_0 = lambda point: 0
     renderer2 = MonteCarloPDE2D(half_sphere2, num_walks, epsilon, max_walk_length, method, half_sphere2.diffusion,
                                 half_sphere2.laplacian_diffusion, half_sphere2.norm_gradient_log_diffusion, screening_coeff_0)
@@ -94,4 +93,4 @@ if __name__ == '__main__':
     values2 = renderer2.find_pde()
     plt.scatter(half_sphere2.points_to_check()[:, 0], half_sphere2.points_to_check()[:, 1], 100*np.abs(values2))
     plt.savefig('circle_in_2d.png')
-    heatmap_riemannian_conform(values2, half_sphere2)
+    heatmap_riemannian_conform(values2, half_sphere2)"""

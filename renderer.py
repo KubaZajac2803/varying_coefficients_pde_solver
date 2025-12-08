@@ -164,6 +164,12 @@ class MonteCarloPDE2D:
                 for i, point_to_check in enumerate(self.points_to_check):
                     for walk_num in range(self.num_walks):
                         result[i] += self.next_flight(point_to_check, self.max_walk_length) / self.num_walks
+            case "boundary_values":
+                for i, point_to_check in enumerate(self.points_to_check):
+                    if np.linalg.norm(self.geometry.closest_boundary_point(point_to_check) - point_to_check) < 0.1:
+                        result[i] = self.geometry.value_at_boundary(point_to_check)
+                    else:
+                        result[i] = None
             case "background_values":
                 for i, point_to_check in enumerate(self.points_to_check):
                     result[i] = self.geometry.value_at_background(point_to_check)

@@ -11,7 +11,7 @@ class Square2D:
         self.boundary_segments = np.array([[self.boundary[n - 1], self.boundary[n]] for n in range(len(self.boundary))])
         self.boundary_conditions = boundary_condition_func
         self.background_value = background_value
-        self.shape = (bdr_max, bdr_max)
+        self.shape = (bdr_max+1, bdr_max+1)
 
     def value_at_boundary(self, point):
         return self.boundary_conditions(point)
@@ -44,7 +44,7 @@ class Square2D:
         return closest_point
 
     def points_to_check(self):
-        return np.array([[k % self.bdr_max, k // self.bdr_max] for k in range(self.bdr_max ** 2)])
+        return np.array([[k % (self.bdr_max+1), k // (self.bdr_max+1)] for k in range((self.bdr_max+1) ** 2)])
 
 
 class Rectangle2D:
@@ -58,7 +58,7 @@ class Rectangle2D:
             self.boundary_segments = np.array([[self.boundary[n - 1], self.boundary[n]] for n in range(len(self.boundary))])
         self.boundary_conditions = boundary_condition_func
         self.background_value = background_value
-        self.shape = (bdr_max_x, bdr_max_y)
+        self.shape = (bdr_max_x+1, bdr_max_y+1)
 
     def value_at_boundary(self, point):
         return self.boundary_conditions(point)
@@ -91,7 +91,7 @@ class Rectangle2D:
         return closest_point
 
     def points_to_check(self):
-        return np.array([[k % self.bdr_max_x, k // self.bdr_max_x] for k in range(self.bdr_max_x*self.bdr_max_y)])
+        return np.array([[k % self.bdr_max_x, k // self.bdr_max_x] for k in range((self.bdr_max_x+1)*(self.bdr_max_y+1))])
 
 
 class ParametricHalfSphere:
@@ -154,18 +154,18 @@ class ParametricHalfSphereConformal:
         self.diffusion = sym.lambdify((u, v), diffusion)
 
     def value_at_boundary(self, point):
-        if -1/np.sqrt(2) < point[0] < 1/np.sqrt(2):
+        if point[0] < 0:
             return 0
         else:
             return 0
 
     def value_at_background(self, point):
-        value = 10
+        value = 100
         norm = np.sqrt(point[0]**2 + point[1]**2)
         if point[0]**2 < 0.3**2:
             if point[1]**2 < 0.3**2:
-                value = 10
-        return value # *(np.exp(-10*norm))
+                value = 100
+        return value
 
     def closest_boundary_point(self, current_point):
         norm_length = np.sqrt(current_point[0]**2 + current_point[1]**2)
